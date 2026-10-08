@@ -14,7 +14,11 @@ enum FalahMain {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clock = AppClock.fromArguments()
+    // Houston until location + settings land (milestone 7).
+    private var engine = PrayerEngine(coordinates: Coordinates(latitude: 29.7604, longitude: -95.3698))
     private var statusItemController: StatusItemController?
+    private var scheduler: Scheduler?
+    private var lastScheduleDay: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if clock.isFaked {
@@ -22,23 +26,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         statusItemController = StatusItemController()
         Log.app.notice("Falah launched")
-        logSnapshot()
+
+        scheduler = Scheduler(clock: clock) { [weak self] reason in
+            self?.refresh(reason: reason)
+        }
+        scheduler?.start()
     }
 
-    // Houston until location + settings land (milestone 7).
-    private let engine = PrayerEngine(coordinates: Coordinates(latitude: 29.7604, longitude: -95.3698))
+    private func refresh(reason: Scheduler.Reason) {
+        // Pick up time zone changes (Scheduler resets the cached system zone first).
+        engine.timeZone = .current
+        let now = clock.now()
 
-    private func logSnapshot() {
-        let time = Date.FormatStyle(date: .omitted, time: .shortened)
         do {
-            let snap = try engine.snapshot(at: clock.now())
-            let list = (snap.schedule.intervals.map { "\($0.prayer.displayName) \($0.start.formatted(time))" }
-                + ["Last third \(snap.schedule.lastThird.formatted(time))"])
-                .joined(separator: ", ")
-            Log.engine.notice("Today: \(list, privacy: .public)")
-            Log.engine.notice("Current: \(snap.current?.prayer.displayName ?? "none", privacy: .public) · next: \(snap.next.prayer.displayName, privacy: .public) at \(snap.next.start.formatted(time), privacy: .public) (in \(Int(snap.timeUntilNext / 60)) min) · phase: \(snap.phase.rawValue, privacy: .public) · arc: \(String(describing: snap.arc), privacy: .public)")
+            let snap = try engine.snapshot(at: now)
+            statusItemController?.update(with: snap)
+
+            let text = MenuBarText.text(for: snap)
+            Log.app.notice("Refresh (\(reason.rawValue, privacy: .public)) at \(now.formatted(date: .omitted, time: .standard), privacy: .public) \(TimeZone.current.identifier, privacy: .public): \(text, privacy: .public)")
+            if snap.schedule.day != lastScheduleDay {
+                lastScheduleDay = snap.schedule.day
+                logSchedule(snap)
+            }
         } catch {
+            statusItemController?.showUnavailable()
             Log.engine.error("Prayer times unavailable: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    private func logSchedule(_ snap: PrayerSnapshot) {
+        let time = Date.FormatStyle(date: .omitted, time: .shortened)
+        let list = (snap.schedule.intervals.map { "\($0.prayer.displayName) \($0.start.formatted(time))" }
+            + ["Last third \(snap.schedule.lastThird.formatted(time))"])
+            .joined(separator: ", ")
+        Log.engine.notice("Schedule: \(list, privacy: .public)")
     }
 }

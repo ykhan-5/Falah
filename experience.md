@@ -6,6 +6,50 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · M3 revision: glyph icon + AM/PM
+
+**Did**
+- User feedback: the menu bar arc was "alright" but hard to read at a glance. It's replaced by a **phase glyph**:
+  - **sun** (disc + 8 rays) for Fajr / morning / Dhuhr / Asr
+  - **sunset** (a bit more than half a disc above a horizon line, with a small gap) for Maghrib
+  - **crescent moon** for Isha
+  - a hollow ring if times are unavailable
+- `Model/MenuBarGlyph.swift` holds the phase → glyph mapping (tested). `UI/MenuBarIcon.swift` draws a 16×16 pt glyph.
+- **Times now include AM/PM:** "Maghrib 6:59 PM". The countdown under an hour is unchanged ("Isha in 34m").
+- Screenshots confirmed all three glyphs, via `--debug-time` 17:30 / 19:30 / 21:00. 36 tests passing.
+
+**Decisions**
+- The glyph is a **true template image** (`isTemplate = true`), so macOS tints it exactly like system icons in light and dark menu bars. That gives up the colour-coded sun dot. Colour can return briefly for the M6 "prayer moment" pulse.
+- The **arc moves to the pop-out card only** (M4). `ArcGeometry` and `SkyPalette` accents stay for that.
+- Time format: `setLocalizedDateFormatFromTemplate("jmm")`, so it follows the locale (12-hour with AM/PM, or 24-hour). ICU puts a narrow no-break space (U+202F) before "PM", and the tests normalise it.
+
+## 2026-10-08 · Milestone 3: live menu bar
+
+**Did**
+- New files:
+  - `Model/MenuBarText.swift`: "Asr in 32m" under an hour, "Asr 4:28" otherwise.
+  - `Model/ArcGeometry.swift`: ArcPosition → point on the half ellipse or the night curve.
+  - `Model/SkyPalette.swift`: `RGB` + the six phase accents. Backgrounds come in M5.
+  - `UI/MenuBarIcon.swift`: the 22×13 pt drawn arc, coloured sun, and crescent moon.
+  - `Services/Scheduler.swift`: minute-aligned one-shot timer + wake / day / TZ / clock observers.
+- `StatusItemController.update(with:)` sets the icon, text and tooltip, with a `showsText` flag for M7. The `AppDelegate` wires engine → scheduler → status item.
+- 35 tests passing (text formatting, arc geometry, scheduler delay, hex).
+- Screenshot confirmed the icon in the menu bar: arc + orange sun near the right end + "Maghrib 6:59".
+
+**Decisions**
+- **Not a real template image.** `isTemplate` would turn the sun dot monochrome. The icon is an `NSImage(size:flipped:drawingHandler:)` drawn with `NSColor.labelColor`, which resolves against the menu bar's appearance at draw time. It behaves like a template for the arc and moon, while the sun keeps its phase colour (with a faint outline so the pale morning blue still reads).
+- Moon = `labelColor` crescent, not the phase accent: Isha navy would vanish on a dark menu bar. At night the moon goes right → left on a shallow curve below the horizon (west → under → east).
+- Countdown rounds **up** ("in 1m" until the moment). At 59m01s or more it shows the time. The time omits AM/PM: the locale's `jmm` pattern with the `a` stripped, so 24-hour locales get "18:59".
+- Timer: a one-shot `Timer` re-armed after every tick, on `.common` run-loop mode, tolerance 0.2 s. It fires 50 ms *after* the minute boundary of the **app clock** (so `--debug-time` ticks on fake minutes too). Prayer times are whole minutes, so minute ticks land exactly on prayer starts. No per-second timer.
+- On `NSSystemTimeZoneDidChange`, call `NSTimeZone.resetSystemTimeZone()` before recomputing, and set `engine.timeZone = .current` on every refresh.
+- Monospaced-digit font for the title so the item doesn't jiggle.
+- Every refresh logs at `.notice` with its reason (`start`/`minute`/`wake`/`dayChanged`/`timeZoneChanged`/`clockChanged`). `.info` isn't persisted by `log show`, so ticks were invisible at that level.
+
+**Snags**
+- `Date.FormatStyle.hour(.defaultDigits(amPM: .omitted))` gives "04:28", zero-padded. Switched to `DateFormatter.dateFormat(fromTemplate: "jmm")` minus the `a`.
+- `screencapture` needed Screen Recording permission for the terminal/VS Code. With it, `screencapture -x -R<x>,0,700,24` grabs the right side of the menu bar for visual checks.
+- macOS has no `timeout` command, and foreground `sleep` is blocked in this harness. Use background commands for timed checks.
+
 ## 2026-10-08 · M2 revision: Standard Asr, start times only, last third
 
 **Did**
