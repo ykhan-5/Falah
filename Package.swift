@@ -6,9 +6,13 @@ import PackageDescription
 let package = Package(
     name: "Falah",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        .package(url: "https://github.com/batoulapps/adhan-swift", from: "1.5.0"),
+    ],
     targets: [
         .executableTarget(
             name: "Falah",
+            dependencies: [.product(name: "Adhan", package: "adhan-swift")],
             path: "Sources/Falah"
         ),
         .testTarget(
