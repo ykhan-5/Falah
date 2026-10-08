@@ -6,6 +6,43 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · M6 revision: background flash instead of icon tint
+
+**Did**
+- User check: the card animation looked great, but the icon pulse turned the glyph **black**. `contentTintColor` on a status bar button's template image doesn't render as a colour there, it just goes dark.
+- Replaced it with a **background flash**:
+  - a `CAKeyframeAnimation` on the status button layer's `backgroundColor`, clear ↔ colour three times over 2.6 s
+  - 5 pt corners, like the system's menu bar highlight
+  - covers icon + text
+- Colour: `StatusItemController.momentColor`, default `systemOrange`. The user wants it **editable in Settings** (M7).
+- Verified with frame captures around a debug Asr moment: the item flashes orange.
+
+## 2026-10-08 · Milestone 6: notifications + prayer moment
+
+**Did**
+- `Services/Notifier.swift` (UNUserNotificationCenter, alert only, silent):
+  - On the real clock, it pre-schedules `UNCalendarNotificationTrigger`s for every prayer in the next 36 h (`PrayerEngine.upcomingPrayers(after:within:)`).
+  - It re-schedules only when the set changes; a signature check makes each tick a no-op.
+  - Optional reminder N min before (`reminderMinutes`, default off, setting in M7).
+- `Model/PrayerMoment.swift` (pure, tested):
+  - `justBegan(previous:current:)` fires when the current prayer changes between refreshes and started < 2 min ago.
+  - So no false moments on launch, on wake mid-prayer, or at sunrise.
+  - Also holds the wording: "It's time for Asr · 4:28 PM", "Asr in 10 min · 4:28 PM".
+- On a moment:
+  - **Icon pulse:** `contentTintColor` set to the prayer accent, alpha 1 → 0.25 → 1 three times, the colour held 1.5 s, then the normal tint again.
+  - **Card:** the highlight box slides to the new row (`matchedGeometryEffect` + spring), the title cross-fades (`.contentTransition(.opacity)`), and the sky animates.
+  - **Debug clock only:** the app posts the alert immediately (`trigger: nil`), because system-scheduled alerts follow the real clock.
+- 55 tests passing.
+
+**Snags**
+- **A tick landed 4.7 s late** in a debug run (4:28:04). Real-clock ticks had been ~0.25 s after the minute. The cause is likely **App Nap** coalescing a background accessory app's timers.
+  - Fix: `ProcessInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep)` held by the Scheduler. It opts out of App Nap but still allows idle sleep, and ticks stay once per minute.
+  - The Scheduler also logs any tick > 1 s late.
+  - Rerun result: the tick landed exactly at 4:28:00.
+- **Notification permission:** `requestAuthorization` returns "Notifications are not allowed for this application". Falah is probably denied or unset in System Settings → Notifications (the prompt may have been dismissed, or ad hoc re-signing reset it). The app keeps working without it, as the spec requires. Needs the user to allow it.
+- Log-triggered `screencapture` returned all-black frames, then "could not create image from rect" for every capture. The display was probably asleep or locked while the user was away. The pulse couldn't be verified visually; the user needs to check it.
+- Missing ticks/odd seconds in earlier real-clock logs (e.g. 17:56:38) line up with Mac sleep. On wake, a `wake` refresh corrects things immediately.
+
 ## 2026-10-08 · Milestone 5: sky colours + card redesign from mockup
 
 **Did**

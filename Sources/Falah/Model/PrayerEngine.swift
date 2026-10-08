@@ -218,6 +218,18 @@ struct PrayerEngine {
         )
     }
 
+    /// Prayers starting after `now` and within `horizon`, in order. Used to schedule
+    /// notifications ahead of time.
+    func upcomingPrayers(after now: Date, within horizon: TimeInterval = 36 * 3600) -> [PrayerInterval] {
+        let calendar = self.calendar
+        let today = calendar.startOfDay(for: now)
+        let limit = now.addingTimeInterval(horizon)
+        let days = (0...2).compactMap { offset in
+            try? schedule(for: calendar.date(byAdding: .day, value: offset, to: today)!)
+        }
+        return days.flatMap(\.intervals).filter { $0.start > now && $0.start <= limit }
+    }
+
     private func arcPosition(at now: Date, days: [DaySchedule]) -> ArcPosition {
         // Daytime: sunrise ≤ now < Maghrib of the same day.
         if let day = days.first(where: { $0.sunrise <= now && now < $0.maghrib }) {

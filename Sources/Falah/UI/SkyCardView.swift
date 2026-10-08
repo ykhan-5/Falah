@@ -4,6 +4,7 @@ import SwiftUI
 /// Sits on a sky gradient that follows the time of day.
 struct SkyCardView: View {
     let model: CardModel
+    @Namespace private var highlight
 
     var body: some View {
         Group {
@@ -38,6 +39,7 @@ struct SkyCardView: View {
         }
         .background(SkyBackground(sky: sky))
         .animation(.easeInOut(duration: 1.2), value: sky)
+        .animation(.easeInOut(duration: 0.4), value: snapshot.current?.prayer)
     }
 
     // MARK: Header
@@ -51,6 +53,7 @@ struct SkyCardView: View {
                     .opacity(0.7)
                 Text(snapshot.current?.prayer.displayName ?? snapshot.phase.title)
                     .font(.system(size: 40, weight: .bold, design: .serif))
+                    .contentTransition(.opacity)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -138,17 +141,20 @@ struct SkyCardView: View {
                 .padding(.vertical, 9)
                 .background {
                     if isCurrent {
+                        // Slides to the new row when a prayer begins.
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(.white.opacity(0.10))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .strokeBorder(.white.opacity(0.22), lineWidth: 1)
                             )
+                            .matchedGeometryEffect(id: "current", in: highlight)
                     }
                 }
             }
         }
         .padding(.horizontal, -12)
+        .animation(.spring(response: 0.55, dampingFraction: 0.85), value: snapshot.current?.prayer)
     }
 
     private func lastThird(_ snapshot: PrayerSnapshot) -> some View {

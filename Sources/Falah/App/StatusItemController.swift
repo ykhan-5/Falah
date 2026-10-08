@@ -40,6 +40,28 @@ final class StatusItemController: NSObject {
         popover?.refreshLayout()
     }
 
+    /// Background color for the prayer-moment flash. Editable in Settings (milestone 7).
+    var momentColor = NSColor.systemOrange
+
+    /// Prayer moment: the item's background flashes `momentColor` three times, like the
+    /// menu bar's own highlight but in color.
+    func flash() {
+        guard let button = statusItem.button else { return }
+        button.wantsLayer = true
+        guard let layer = button.layer else { return }
+        layer.cornerRadius = 5
+        layer.masksToBounds = true
+
+        let on = momentColor.withAlphaComponent(0.9).cgColor
+        let off = momentColor.withAlphaComponent(0).cgColor
+        let animation = CAKeyframeAnimation(keyPath: "backgroundColor")
+        animation.values = [off, on, off, on, off, on, off]
+        animation.keyTimes = (0...6).map { NSNumber(value: Double($0) / 6) }
+        animation.timingFunctions = Array(repeating: CAMediaTimingFunction(name: .easeInEaseOut), count: 6)
+        animation.duration = 2.6
+        layer.add(animation, forKey: "momentFlash")
+    }
+
     func showCard() {
         if popover?.isShown != true { popover?.handleClick() }
     }

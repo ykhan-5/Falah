@@ -14,6 +14,9 @@ final class Scheduler {
     private let clock: AppClock
     private let onTick: (Reason) -> Void
     private var timer: Timer?
+    /// Opts out of App Nap, which can delay a background app's timers by several seconds.
+    /// Ticks stay once a minute and idle system sleep is still allowed.
+    private var activity: NSObjectProtocol?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
     init(clock: AppClock, onTick: @escaping (Reason) -> Void) {
@@ -26,6 +29,10 @@ final class Scheduler {
     }
 
     func start() {
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Menu bar prayer countdown updates on the minute"
+        )
         let workspace = NSWorkspace.shared.notificationCenter
         let center = NotificationCenter.default
         observe(workspace, NSWorkspace.didWakeNotification, .wake)
@@ -38,6 +45,8 @@ final class Scheduler {
     func stop() {
         timer?.invalidate()
         timer = nil
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
         for (center, token) in observers {
             center.removeObserver(token)
         }
@@ -62,7 +71,12 @@ final class Scheduler {
     private func armTimer() {
         timer?.invalidate()
         let delay = clock.realInterval(for: Self.delayUntilNextMinute(from: clock.now()))
+        let expected = Date().addingTimeInterval(delay)
         let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            let lateness = Date().timeIntervalSince(expected)
+            if lateness > 1 {
+                Log.app.notice("Minute tick was \(String(format: "%.1f", lateness), privacy: .public)s late")
+            }
             self?.fire(.minute)
         }
         timer.tolerance = 0.2

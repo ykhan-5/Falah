@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
     private var scheduler: Scheduler?
     private var lastScheduleDay: Date?
+    private var lastSnapshot: PrayerSnapshot?
+    private let notifier = Notifier()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if clock.isFaked {
@@ -33,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.statusItemController?.hideCard()
         }
         statusItemController = StatusItemController(cardModel: cardModel)
+        notifier.requestAuthorization()
         Log.app.notice("Falah launched")
 
         scheduler = Scheduler(clock: clock) { [weak self] reason in
@@ -64,6 +67,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if snap.schedule.day != lastScheduleDay {
                 lastScheduleDay = snap.schedule.day
                 logSchedule(snap)
+            }
+
+            if let moment = PrayerMoment.justBegan(previous: lastSnapshot, current: snap) {
+                Log.app.notice("Prayer moment: \(moment.prayer.displayName, privacy: .public)")
+                statusItemController?.flash()
+                // The system can't see the debug clock, so post the alert ourselves.
+                if clock.isFaked { notifier.postNow(for: moment) }
+            }
+            lastSnapshot = snap
+            if !clock.isFaked {
+                notifier.schedule(engine.upcomingPrayers(after: now))
             }
         } catch {
             cardModel.isUnavailable = true

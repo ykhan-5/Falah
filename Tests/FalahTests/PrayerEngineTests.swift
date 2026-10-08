@@ -259,3 +259,51 @@ struct PrayerEngineTests {
         }
     }
 }
+
+struct PrayerMomentTests {
+    let engine = PrayerEngineTests().engine()
+    func at(_ s: String) -> Date { PrayerEngineTests().at(s) }
+
+    @Test func firesWhenAPrayerBeginsBetweenTicks() throws {
+        let before = try engine.snapshot(at: at("2026-10-08 16:27"))
+        let after = try engine.snapshot(at: at("2026-10-08 16:28:00"))
+        #expect(PrayerMoment.justBegan(previous: before, current: after)?.prayer == .asr)
+    }
+
+    @Test func doesNotFireOnLaunchOrWithinTheSamePrayer() throws {
+        let a = try engine.snapshot(at: at("2026-10-08 16:28"))
+        let b = try engine.snapshot(at: at("2026-10-08 16:29"))
+        #expect(PrayerMoment.justBegan(previous: nil, current: a) == nil)
+        #expect(PrayerMoment.justBegan(previous: a, current: b) == nil)
+    }
+
+    @Test func staleStartsDontFireAfterWake() throws {
+        // Slept through Asr's start; woke 40 minutes into it.
+        let beforeSleep = try engine.snapshot(at: at("2026-10-08 15:00"))
+        let onWake = try engine.snapshot(at: at("2026-10-08 17:08"))
+        #expect(PrayerMoment.justBegan(previous: beforeSleep, current: onWake) == nil)
+    }
+
+    @Test func sunriseIsNotAMoment() throws {
+        let fajr = try engine.snapshot(at: at("2026-10-08 07:18"))
+        let morning = try engine.snapshot(at: at("2026-10-08 07:19"))
+        #expect(PrayerMoment.justBegan(previous: fajr, current: morning) == nil)
+    }
+
+    @Test func notificationWording() {
+        let us = Locale(identifier: "en_US")
+        let title = PrayerMoment.title(for: .asr, at: at("2026-10-08 16:28"), timeZone: PrayerEngineTests.chicago, locale: us)
+        #expect(title.replacingOccurrences(of: "\u{202F}", with: " ") == "It's time for Asr · 4:28 PM")
+        let reminder = PrayerMoment.reminderTitle(for: .asr, at: at("2026-10-08 16:28"), minutesBefore: 10, timeZone: PrayerEngineTests.chicago, locale: us)
+        #expect(reminder.replacingOccurrences(of: "\u{202F}", with: " ") == "Asr in 10 min · 4:28 PM")
+    }
+
+    @Test func upcomingPrayersCoverTheNext36Hours() {
+        let upcoming = engine.upcomingPrayers(after: at("2026-10-08 16:30"))
+        #expect(upcoming.first?.prayer == .maghrib)
+        #expect(upcoming.allSatisfy { $0.start > at("2026-10-08 16:30") && $0.start <= at("2026-10-10 04:30") })
+        // Maghrib, Isha today + all five tomorrow.
+        #expect(upcoming.count == 7)
+        #expect(upcoming.map(\.start) == upcoming.map(\.start).sorted())
+    }
+}
