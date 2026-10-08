@@ -1,37 +1,69 @@
 import AppKit
+import SwiftUI
 
-final class StatusItemController {
+final class StatusItemController: NSObject {
     private let statusItem: NSStatusItem
+    private let cardModel: CardModel
+    private var popover: PopoverController?
 
     /// Hides the "Asr in 32m" text, leaving only the icon. Becomes a setting in milestone 7.
     var showsText = true
 
-    init() {
+    init(cardModel: CardModel) {
+        self.cardModel = cardModel
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
-            button.imagePosition = .imageLeading
-            button.imageHugsTitle = true
-            button.image = MenuBarIcon.image(glyph: nil)
-        }
+        super.init()
 
-        // Temporary until the pop-out card (milestone 4): there is no Dock icon to quit from.
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Quit Falah", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = menu
+        guard let button = statusItem.button else { return }
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
+        button.image = MenuBarIcon.image(glyph: nil)
+        button.target = self
+        button.action = #selector(buttonClicked(_:))
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+
+        let hosting = NSHostingView(rootView: SkyCardView(model: cardModel))
+        popover = PopoverController(button: button, content: hosting)
     }
 
     func update(with snapshot: PrayerSnapshot) {
         guard let button = statusItem.button else { return }
         button.image = MenuBarIcon.image(glyph: MenuBarGlyph(phase: snapshot.phase))
         setTitle(showsText ? MenuBarText.text(for: snapshot) : "")
-        button.toolTip = "Next: \(snapshot.next.prayer.displayName) at \(snapshot.next.start.formatted(date: .omitted, time: .shortened))"
+        popover?.refreshLayout()
     }
 
     func showUnavailable() {
-        guard let button = statusItem.button else { return }
-        button.image = MenuBarIcon.image(glyph: nil)
+        guard statusItem.button != nil else { return }
+        statusItem.button?.image = MenuBarIcon.image(glyph: nil)
         setTitle(showsText ? "–" : "")
-        button.toolTip = "Prayer times unavailable"
+        popover?.refreshLayout()
+    }
+
+    func showCard() {
+        if popover?.isShown != true { popover?.handleClick() }
+    }
+
+    func hideCard() {
+        popover?.hide(reason: "action")
+    }
+
+    @objc private func buttonClicked(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            showContextMenu()
+        } else {
+            popover?.handleClick()
+        }
+    }
+
+    /// Right-click: a small menu, mainly so Quit is always reachable.
+    private func showContextMenu() {
+        guard let button = statusItem.button else { return }
+        popover?.hide(reason: "context menu")
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Quit Falah", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
     }
 
     private func setTitle(_ text: String) {

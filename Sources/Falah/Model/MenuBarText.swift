@@ -24,6 +24,17 @@ enum MenuBarText {
         return "\(prayer.displayName) \(shortTime(start, timeZone: timeZone, locale: locale))"
     }
 
+    /// The card's longer countdown: "in 32 min", "in 1 hr 31 min", "in 2 hr".
+    static func longCountdown(to date: Date, from now: Date) -> String {
+        let minutes = minutesUntil(date, from: now)
+        let (hours, rest) = (minutes / 60, minutes % 60)
+        switch (hours, rest) {
+        case (0, _): return "in \(rest) min"
+        case (_, 0): return "in \(hours) hr"
+        default: return "in \(hours) hr \(rest) min"
+        }
+    }
+
     /// Whole minutes remaining, rounded up so "in 1m" shows until the moment arrives.
     static func minutesUntil(_ date: Date, from now: Date) -> Int {
         max(0, Int((date.timeIntervalSince(now) / 60).rounded(.up)))

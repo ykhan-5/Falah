@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clock = AppClock.fromArguments()
     // Houston until location + settings land (milestone 7).
     private var engine = PrayerEngine(coordinates: Coordinates(latitude: 29.7604, longitude: -95.3698))
+    private let cardModel = CardModel()
     private var statusItemController: StatusItemController?
     private var scheduler: Scheduler?
     private var lastScheduleDay: Date?
@@ -24,13 +25,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if clock.isFaked {
             Log.clock.notice("Debug time active: now = \(self.clock.now().formatted(date: .abbreviated, time: .standard), privacy: .public)")
         }
-        statusItemController = StatusItemController()
+        cardModel.settings = engine.settings
+        cardModel.onQuit = { NSApp.terminate(nil) }
+        cardModel.onSettings = { [weak self] in
+            // Settings window arrives in milestone 7.
+            Log.app.notice("Settings tapped (not built yet)")
+            self?.statusItemController?.hideCard()
+        }
+        statusItemController = StatusItemController(cardModel: cardModel)
         Log.app.notice("Falah launched")
 
         scheduler = Scheduler(clock: clock) { [weak self] reason in
             self?.refresh(reason: reason)
         }
         scheduler?.start()
+
+        // Hidden: open the card at launch, for screenshots and testing.
+        if CommandLine.arguments.contains("--show-card") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.statusItemController?.showCard()
+            }
+        }
     }
 
     private func refresh(reason: Scheduler.Reason) {
@@ -40,6 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         do {
             let snap = try engine.snapshot(at: now)
+            cardModel.snapshot = snap
+            cardModel.isUnavailable = false
             statusItemController?.update(with: snap)
 
             let text = MenuBarText.text(for: snap)
@@ -49,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 logSchedule(snap)
             }
         } catch {
+            cardModel.isUnavailable = true
             statusItemController?.showUnavailable()
             Log.engine.error("Prayer times unavailable: \(String(describing: error), privacy: .public)")
         }

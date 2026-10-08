@@ -6,6 +6,44 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · Milestone 4: pop-out card
+
+**Did**
+- `UI/PopoverPanel.swift` has two pieces:
+  - `CardPanel`: borderless + `.nonactivatingPanel`, `level = .statusBar`, clear background, window shadow, joins all spaces.
+  - `PopoverController`, which owns the open and close behaviour:
+    - hover opens after 0.3 s (tracking area on the status button)
+    - while a hover-opened card is visible, a 10 Hz pointer check closes it after 0.4 s outside item ∪ card ∪ corridor
+    - a click opens and **pins** the card; clicking again closes it
+    - a global mouse-down monitor closes on a click outside
+    - a local keyDown monitor closes on Esc (keyCode 53)
+- `UI/SkyCardView.swift`, the card (360 pt wide, 18 pt continuous corners):
+  - header: the current prayer in large serif, or "Morning" in the sunrise→Dhuhr gap; then "Now · Maghrib in 1 hr 12 min · 6:59 PM"
+  - arc
+  - list of the five prayers + Last third, with phase-coloured dots and the current row highlighted
+  - footer "Houston · ISNA · Asr: Standard", plus gear (placeholder until M7) and power (Quit)
+  - an unavailable state
+- `UI/ArcView.swift`: a SwiftUI `Canvas` reusing `ArcGeometry`:
+  - traveled part solid, the rest dashed
+  - Dhuhr/Asr marks with times
+  - Sunrise/Maghrib labels under the horizon
+  - glowing sun in the phase accent
+  - at night, the day arc goes dashed and dim and a crescent moon moves on the curve below the horizon
+- `UI/CardModel.swift`: an `@Observable` model updated on every scheduler refresh, plus method short names.
+- Right-click (or ctrl-click) on the item shows a menu with Quit. The status item no longer has a menu attached.
+- Hidden `--show-card` launch argument opens the card pinned at launch, for screenshots.
+- 40 tests passing (new: long countdown, panel frame/clamping, hover corridor, `dayFraction`).
+
+**Decisions**
+- **Hover never makes the panel key, so it never takes keyboard focus.** A click makes it key without activating the app (non-activating panel), which is what lets Esc work. Clicking a hover-opened card's icon pins it rather than closing it, since people often hover and then click.
+- A pointer poll instead of tracking areas for the close rule: it handles the corridor between icon and card simply, and only runs while a hover-opened card is visible (no idle cost).
+- Global monitors cover mouse clicks only. A global *key* monitor would need Accessibility permission, so Esc works only once the card is key, i.e. after a click.
+- Card background is `.regularMaterial` for now. The sky gradients come in M5.
+
+**Snags**
+- First pass: the "Asr 4:28 PM" label overflowed the card's right edge (anchored leading, right of the mark). At night the Sunrise/Maghrib labels collided with the moon's path below the horizon. Fixed by anchoring Asr trailing, and laying the canvas out bottom-up: labels → night depth → horizon → arc.
+- `Path.subtracting` (for the crescent) needs macOS 14, which we already require.
+
 ## 2026-10-08 · M3 revision: glyph icon + AM/PM
 
 **Did**

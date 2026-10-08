@@ -95,3 +95,49 @@ struct MenuBarGlyphTests {
         #expect(MenuBarGlyph(phase: phase) == glyph)
     }
 }
+
+struct CardLogicTests {
+    let now = Date(timeIntervalSinceReferenceDate: 813_190_080)
+
+    @Test func longCountdown() {
+        #expect(MenuBarText.longCountdown(to: now.addingTimeInterval(32 * 60), from: now) == "in 32 min")
+        #expect(MenuBarText.longCountdown(to: now.addingTimeInterval(91 * 60), from: now) == "in 1 hr 31 min")
+        #expect(MenuBarText.longCountdown(to: now.addingTimeInterval(120 * 60), from: now) == "in 2 hr")
+        #expect(MenuBarText.longCountdown(to: now.addingTimeInterval(59 * 60 + 1), from: now) == "in 1 hr")
+    }
+
+    @Test func panelSitsUnderTheItemAndStaysOnScreen() {
+        let visible = CGRect(x: 0, y: 0, width: 1512, height: 950)
+        let size = CGSize(width: 360, height: 420)
+        let centered = PopoverController.panelFrame(size: size, under: CGRect(x: 700, y: 950, width: 120, height: 24), in: visible)
+        #expect(centered == CGRect(x: 580, y: 524, width: 360, height: 420))
+        // Item near the right edge: clamp 8 pt inside.
+        let clamped = PopoverController.panelFrame(size: size, under: CGRect(x: 1450, y: 950, width: 60, height: 24), in: visible)
+        #expect(clamped.maxX == 1504)
+    }
+
+    @Test func hoverRegionIncludesCorridor() {
+        let button = CGRect(x: 700, y: 950, width: 120, height: 24)
+        let panel = CGRect(x: 580, y: 524, width: 360, height: 420)
+        let region = PopoverController.hoverRegion(button: button, panel: panel)
+        func inside(_ x: CGFloat, _ y: CGFloat) -> Bool { region.contains { $0.contains(CGPoint(x: x, y: y)) } }
+        #expect(inside(760, 960))     // on the item
+        #expect(inside(760, 947))     // gap between item and card
+        #expect(inside(600, 600))     // on the card
+        #expect(!inside(300, 960))    // elsewhere on the menu bar
+        #expect(!inside(1000, 600))   // beside the card
+    }
+}
+
+struct DayFractionTests {
+    @Test func dhuhrSitsNearTheMiddleAndAsrOnTheRight() throws {
+        let tz = TimeZone(identifier: "America/Chicago")!
+        let engine = PrayerEngine(coordinates: .init(latitude: 29.7604, longitude: -95.3698), timeZone: tz)
+        let s = try engine.schedule(for: Date(timeIntervalSince1970: 1_791_500_000))
+        #expect(s.dayFraction(of: s.sunrise) == 0)
+        #expect(s.dayFraction(of: s.maghrib) == 1)
+        #expect(abs(s.dayFraction(of: s.dhuhr) - 0.5) < 0.02)
+        #expect(s.dayFraction(of: s.asr) > 0.6)
+        #expect(s.dayFraction(of: s.fajr) == 0)
+    }
+}

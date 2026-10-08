@@ -94,6 +94,14 @@ struct DaySchedule: Equatable {
         PrayerName.allCases.map { PrayerInterval(prayer: $0, start: start(of: $0), end: end(of: $0), day: day) }
     }
 
+    /// Where `date` falls between sunrise (0) and Maghrib (1), clamped. Used to place the
+    /// Dhuhr and Asr marks on the card's arc.
+    func dayFraction(of date: Date) -> Double {
+        let total = maghrib.timeIntervalSince(sunrise)
+        guard total > 0 else { return 0 }
+        return max(0, min(1, date.timeIntervalSince(sunrise) / total))
+    }
+
     /// Phase boundaries in order, each marking the start of a phase.
     var phaseStarts: [(phase: SkyPhase, start: Date)] {
         [(.fajr, fajr), (.morning, sunrise), (.dhuhr, dhuhr), (.asr, asr), (.maghrib, maghrib), (.isha, isha)]
