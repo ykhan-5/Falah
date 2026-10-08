@@ -35,4 +35,20 @@ struct ClockTests {
         #expect(!AppClock.fromArguments(["Falah", "--debug-time", "yesterday"]).isFaked)
         #expect(!AppClock.fromArguments(["Falah", "--debug-time"]).isFaked)
     }
+
+    @Test func speedRunsTheClockFaster() {
+        let anchor = Date(timeIntervalSince1970: 1_000_000)
+        let clock = AppClock.fromArguments(["Falah", "--debug-time", "2026-10-08T05:00", "--debug-speed", "300"], realNow: anchor, timeZone: houston)
+        let start = AppClock.parseDebugTime("2026-10-08T05:00", timeZone: houston)!
+        #expect(clock.isFaked)
+        #expect(clock.now(real: anchor) == start)
+        // One real second is five clock minutes.
+        #expect(clock.now(real: anchor.addingTimeInterval(1)) == start.addingTimeInterval(300))
+        #expect(clock.realInterval(for: 60) == 0.2)
+    }
+
+    @Test func badSpeedFallsBackToRealTime() {
+        #expect(AppClock.fromArguments(["Falah", "--debug-speed", "fast"]).speed == 1)
+        #expect(AppClock.fromArguments(["Falah", "--debug-speed", "-2"]).speed == 1)
+    }
 }

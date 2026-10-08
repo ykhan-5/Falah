@@ -40,6 +40,24 @@ enum MenuBarText {
         max(0, Int((date.timeIntervalSince(now) / 60).rounded(.up)))
     }
 
+    /// "4:28 – 6:59 PM" when both share AM/PM, "8:04 PM – 6:14 AM" otherwise,
+    /// "16:28 – 18:59" in 24-hour locales.
+    static func timeRange(_ start: Date, _ end: Date, timeZone: TimeZone = .current, locale: Locale = .current) -> String {
+        let first = shortTime(start, timeZone: timeZone, locale: locale)
+        let second = shortTime(end, timeZone: timeZone, locale: locale)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let samePeriod = (calendar.component(.hour, from: start) < 12) == (calendar.component(.hour, from: end) < 12)
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        let symbol = calendar.component(.hour, from: start) < 12 ? formatter.amSymbol ?? "AM" : formatter.pmSymbol ?? "PM"
+        if samePeriod, first.hasSuffix(symbol), second.hasSuffix(symbol) {
+            let trimmed = String(first.dropLast(symbol.count)).trimmingCharacters(in: .whitespaces)
+            return "\(trimmed) – \(second)"
+        }
+        return "\(first) – \(second)"
+    }
+
     /// "4:30 PM" in 12-hour locales, "16:30" in 24-hour locales.
     static func shortTime(_ date: Date, timeZone: TimeZone, locale: Locale) -> String {
         let formatter = DateFormatter()

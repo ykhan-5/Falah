@@ -68,6 +68,7 @@ struct DaySchedule: Equatable {
     /// Start of the last third of the night (Maghrib → next Fajr), early the next morning.
     let lastThird: Date
     let nextFajr: Date
+    let nextSunrise: Date
 
     func start(of prayer: PrayerName) -> Date {
         switch prayer {
@@ -102,6 +103,14 @@ struct DaySchedule: Equatable {
         return max(0, min(1, date.timeIntervalSince(sunrise) / total))
     }
 
+    /// Where `date` falls between Maghrib (0) and the next sunrise (1), clamped. Used to
+    /// place Isha, the last third and Fajr on the night half of the card's oval.
+    func nightFraction(of date: Date) -> Double {
+        let total = nextSunrise.timeIntervalSince(maghrib)
+        guard total > 0 else { return 0 }
+        return max(0, min(1, date.timeIntervalSince(maghrib) / total))
+    }
+
     /// Phase boundaries in order, each marking the start of a phase.
     var phaseStarts: [(phase: SkyPhase, start: Date)] {
         [(.fajr, fajr), (.morning, sunrise), (.dhuhr, dhuhr), (.asr, asr), (.maghrib, maghrib), (.isha, isha)]
@@ -112,7 +121,7 @@ struct DaySchedule: Equatable {
 enum ArcPosition: Equatable {
     /// 0 at sunrise (left) → 1 at Maghrib (right), along the half ellipse.
     case day(Double)
-    /// 0 at Maghrib → 1 at the next Fajr, below the horizon. Holds at 1 from Fajr to sunrise.
+    /// 0 at Maghrib → 1 at the next sunrise, along the night half below the horizon.
     case night(Double)
 }
 
@@ -172,7 +181,8 @@ struct PrayerEngine {
             maghrib: today.maghrib,
             isha: today.isha,
             lastThird: sunnah.lastThirdOfTheNight,
-            nextFajr: tomorrow.fajr
+            nextFajr: tomorrow.fajr,
+            nextSunrise: tomorrow.sunrise
         )
     }
 
@@ -213,9 +223,9 @@ struct PrayerEngine {
         if let day = days.first(where: { $0.sunrise <= now && now < $0.maghrib }) {
             return .day(fraction(now, from: day.sunrise, to: day.maghrib))
         }
-        // Night: from the latest Maghrib before now toward the following Fajr.
+        // Night: from the latest Maghrib before now to the following sunrise.
         if let evening = days.last(where: { $0.maghrib <= now }) {
-            return .night(fraction(now, from: evening.maghrib, to: evening.nextFajr))
+            return .night(fraction(now, from: evening.maghrib, to: evening.nextSunrise))
         }
         return .night(1)
     }

@@ -6,6 +6,63 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · Milestone 5: sky colours + card redesign from mockup
+
+**Did**
+- The user supplied a mockup. The card was rebuilt to match it:
+  - **Header:** a small "NOW" label over the prayer name in large bold serif. On the right, "Maghrib in" over a big countdown in the prayer's accent colour.
+  - **Progress bar** for the current window (prayer start → next prayer, or sunrise → Dhuhr in the morning gap), with start and end times underneath.
+  - **Arc:** back to a half ellipse + a shallow dotted night curve. **Only Sunrise and Sunset are marked** (the user asked to stop marking every prayer on the hero). The traveled part is solid in the accent colour by day; the moon moves along the dotted curve at night.
+  - **List:**
+    - earlier prayers dimmed
+    - the current row boxed and bold, showing its **range** ("4:28 – 6:59 PM", shared AM/PM dropped)
+    - a **NEXT** capsule on the next prayer
+    - "Last third of the night" on its own line under a divider
+  - **Footer** band (darker) with location · method · Asr and a gear. The quit button was removed from the card; right-click the icon to quit.
+- **Four sky gradients**, chosen by the user: dawn, day, sunset, night. All of it lives in `SkyPalette` (pure, tested):
+  - dawn: Fajr → sunrise + 40 min
+  - day: until Maghrib − 60 min
+  - sunset: until Isha
+  - night: until Fajr
+  - blends smoothstep into the next sky over the last 20 min before each boundary
+  - stars fade in at night (and faintly at dawn)
+- `AppClock` gained `--debug-speed N` (clock seconds per real second), the "time travel" scrubber from the spec. The scheduler converts its waits with `clock.realInterval(for:)`. Example: `--debug-time 2026-10-08T05:30 --debug-speed 300` plays a day in about 5 minutes.
+- 49 tests passing. New ones cover:
+  - white text ≥ 4.5:1 on every sky stop, and sampled every 5 min through a whole day of blends
+  - which sky is active at given times
+  - blend smoothness at boundaries
+  - accents ≥ 3:1 on their sky
+  - time-range formatting
+  - clock speed
+- Screenshots checked at 06:40 (dawn / Fajr), 12:00 (day / Morning), 18:27 (sunset / Asr, which matches the mockup) and 21:00 (night / Isha).
+
+**Decisions**
+- **White text on every sky** rather than flipping between dark and light ink. With a top/bottom gradient there's a blend moment where no single ink passes 4.5:1 on both ends. So every sky is kept dark enough for white, and the "day" sky is a rich mid blue rather than pale. Tests enforce it. Because sRGB blending can't get brighter than its brighter endpoint, the blends are safe too.
+- **Accents brightened** from the spec's table (e.g. Isha #2A3360 → #9AA4F0, Fajr #3D5A8A → #8EA6D8). The originals were designed for light cards and would vanish on these dark skies.
+- The current row shows its range even though M2 dropped end times. The user's mockup shows it, and the progress bar needs the end anyway. The other rows stay start-only.
+- The sky period is computed from the shown schedule. Its window always contains `now`, since the shown day is the current prayer's day, or the next prayer's in the morning gap.
+
+**Deviations from the spec**
+- The spec's six phase backgrounds are replaced by the user's four skies. The six accents are kept, but brightened.
+
+## 2026-10-08 · M4 revision: 24-hour oval
+
+**Did**
+- The user wanted all the nodes on the arc, including the last third. They picked a **24-hour oval** over evenly spaced node-to-node stepping.
+- `ArcView` is now a full ellipse cut by the horizon:
+  - day over the top: sunrise (left) → Dhuhr → Asr → Maghrib (right)
+  - night underneath: Maghrib → Isha → Last third → Fajr → back to sunrise
+  - every node sits at its real time
+- The sun glows on the top half; a crescent moon with a soft glow travels the bottom.
+- **The line since Fajr (start of the prayer day) is solid; the rest is dashed.** At 10 AM it's solid from Fajr up past sunrise. At 3 AM it's nearly the whole loop.
+- Labels sit just inside the oval, facing the centre (direction normalised in ellipse space), so they never spill past the card edges. Maghrib's label sits above the horizon line. The current prayer's label and node are bold and slightly larger.
+- **Engine change:** `ArcPosition.night` is now Maghrib → **next sunrise** (it was next Fajr, held at 1 until sunrise). `DaySchedule` gained `nextSunrise` and `nightFraction(of:)`. The moon keeps moving through Fajr time.
+- 41 tests passing. Screenshots checked at 10:00, 17:47, 21:00 and 03:00.
+
+**Decisions**
+- Night nodes come from the shown schedule (`schedule.nextFajr` etc.). Between Fajr and sunrise the list shows today, so the night-half labels show *tonight's* times while the moon finishes *last* night. Positions differ by about a minute, which isn't visible, and the labels stay consistent with the list.
+- The arc canvas grew from 138 → 200 pt tall.
+
 ## 2026-10-08 · Milestone 4: pop-out card
 
 **Did**

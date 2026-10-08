@@ -3,35 +3,47 @@ import Foundation
 /// Source of "now" for the whole app.
 ///
 /// With `--debug-time "2026-10-08T16:29:00"` (local time) the clock starts at that
-/// moment and keeps ticking in real time, so prayer moments can be tested without waiting.
+/// moment and keeps ticking, so prayer moments can be tested without waiting.
+/// `--debug-speed 300` makes it run 300× faster, to scrub through a day and watch the sky.
 struct AppClock {
-    /// Seconds added to the real clock. Zero when not faking time.
+    /// Seconds added to the real clock at `anchor`. Zero when not faking time.
     let offset: TimeInterval
+    /// Clock seconds per real second. 1 is real time.
+    let speed: Double
+    /// Real moment the clock started.
+    let anchor: Date
 
-    init(offset: TimeInterval = 0) {
+    init(offset: TimeInterval = 0, speed: Double = 1, anchor: Date = Date()) {
         self.offset = offset
+        self.speed = speed > 0 ? speed : 1
+        self.anchor = anchor
     }
 
-    var isFaked: Bool { offset != 0 }
+    var isFaked: Bool { offset != 0 || speed != 1 }
 
-    func now() -> Date {
-        Date().addingTimeInterval(offset)
+    func now(real: Date = Date()) -> Date {
+        anchor.addingTimeInterval(offset + real.timeIntervalSince(anchor) * speed)
+    }
+
+    /// Real seconds to wait for `interval` seconds to pass on this clock.
+    func realInterval(for interval: TimeInterval) -> TimeInterval {
+        interval / speed
     }
 
     /// Builds a clock from launch arguments. Falls back to the real clock if the
-    /// argument is missing or unparseable.
+    /// arguments are missing or unparseable.
     static func fromArguments(
         _ arguments: [String] = CommandLine.arguments,
         realNow: Date = Date(),
         timeZone: TimeZone = .current
     ) -> AppClock {
-        guard let index = arguments.firstIndex(of: "--debug-time"),
-              index + 1 < arguments.count,
-              let fake = parseDebugTime(arguments[index + 1], timeZone: timeZone)
-        else {
-            return AppClock()
+        func value(after flag: String) -> String? {
+            guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
+            return arguments[index + 1]
         }
-        return AppClock(offset: fake.timeIntervalSince(realNow))
+        let fake = value(after: "--debug-time").flatMap { parseDebugTime($0, timeZone: timeZone) }
+        let speed = value(after: "--debug-speed").flatMap(Double.init) ?? 1
+        return AppClock(offset: fake.map { $0.timeIntervalSince(realNow) } ?? 0, speed: speed, anchor: realNow)
     }
 
     /// Parses "yyyy-MM-dd'T'HH:mm:ss" (seconds optional) as local wall-clock time.

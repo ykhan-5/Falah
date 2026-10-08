@@ -76,11 +76,6 @@ struct SchedulerTests {
     }
 }
 
-struct SkyPaletteTests {
-    @Test func hexParsing() {
-        #expect(RGB(hex: 0xFF8000) == RGB(red: 1, green: 128.0 / 255, blue: 0))
-    }
-}
 
 struct MenuBarGlyphTests {
     @Test(arguments: [
@@ -139,5 +134,89 @@ struct DayFractionTests {
         #expect(abs(s.dayFraction(of: s.dhuhr) - 0.5) < 0.02)
         #expect(s.dayFraction(of: s.asr) > 0.6)
         #expect(s.dayFraction(of: s.fajr) == 0)
+    }
+}
+
+struct SkyTests {
+    static let tz = TimeZone(identifier: "America/Chicago")!
+    let engine = PrayerEngine(coordinates: .init(latitude: 29.7604, longitude: -95.3698), timeZone: tz)
+
+    func at(_ s: String) -> Date {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = Self.tz
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.date(from: s)!
+    }
+
+    @Test(arguments: SkyPeriod.allCases.map(\.rawValue))
+    func whiteTextMeetsContrastOnEverySky(period: String) {
+        let g = SkyPalette.gradient(for: SkyPeriod(rawValue: period)!)
+        #expect(RGB.contrast(.white, g.top) >= 4.5)
+        #expect(RGB.contrast(.white, g.bottom) >= 4.5)
+    }
+
+    @Test func blendsStayReadable() throws {
+        // Sample a whole prayer day, including every blend window.
+        let s = try engine.schedule(for: at("2026-10-08 12:00"))
+        var t = s.fajr
+        while t < s.nextFajr {
+            let sky = SkyPalette.sky(at: t, schedule: s)
+            #expect(RGB.contrast(.white, sky.top) >= 4.5)
+            #expect(RGB.contrast(.white, sky.bottom) >= 4.5)
+            t = t.addingTimeInterval(5 * 60)
+        }
+    }
+
+    @Test(arguments: [
+        ("2026-10-08 06:30", SkyPeriod.dawn),
+        ("2026-10-08 07:50", .dawn),
+        ("2026-10-08 08:10", .day),
+        ("2026-10-08 17:50", .day),
+        ("2026-10-08 18:27", .sunset),
+        ("2026-10-08 19:30", .sunset),
+        ("2026-10-08 21:00", .night),
+        ("2026-10-09 05:00", .night),
+    ])
+    func periodAtTime(time: String, period: SkyPeriod) throws {
+        let s = try engine.schedule(for: at("2026-10-08 12:00"))
+        #expect(SkyPalette.period(at: at(time), schedule: s) == period)
+    }
+
+    @Test func blendIsSmoothAndOnlyNearBoundaries() throws {
+        let s = try engine.schedule(for: at("2026-10-08 12:00"))
+        // Mid-day: pure day sky.
+        #expect(SkyPalette.sky(at: at("2026-10-08 12:00"), schedule: s) == SkyPalette.gradient(for: .day))
+        // Day ends at 17:59 (1 hr before Maghrib): 10 min before, halfway blended.
+        let half = SkyPalette.sky(at: at("2026-10-08 17:49"), schedule: s)
+        let expected = SkyPalette.gradient(for: .day).mixed(with: SkyPalette.gradient(for: .sunset), 0.5)
+        #expect(abs(half.top.red - expected.top.red) < 1e-9)
+        // No jump at the boundary: a minute either side differ only slightly.
+        let before = SkyPalette.sky(at: at("2026-10-08 17:58"), schedule: s)
+        let after = SkyPalette.sky(at: at("2026-10-08 18:00"), schedule: s)
+        #expect(abs(before.top.blue - after.top.blue) < 0.01)
+    }
+
+    @Test(arguments: [
+        (SkyPhase.fajr, SkyPeriod.dawn), (.morning, .day), (.dhuhr, .day),
+        (.asr, .sunset), (.maghrib, .sunset), (.isha, .night),
+    ])
+    func accentsStandOutOnTheirSky(phase: SkyPhase, period: SkyPeriod) {
+        // Large text / UI components: 3:1 against the top of the sky they appear on.
+        #expect(RGB.contrast(SkyPalette.accent(for: phase), SkyPalette.gradient(for: period).top) >= 3)
+    }
+
+    @Test func timeRangeDropsSharedAMPM() {
+        let us = Locale(identifier: "en_US")
+        func norm(_ s: String) -> String { s.replacingOccurrences(of: "\u{202F}", with: " ") }
+        #expect(norm(MenuBarText.timeRange(at("2026-10-08 16:28"), at("2026-10-08 18:59"), timeZone: Self.tz, locale: us)) == "4:28 – 6:59 PM")
+        #expect(norm(MenuBarText.timeRange(at("2026-10-08 20:04"), at("2026-10-09 06:14"), timeZone: Self.tz, locale: us)) == "8:04 PM – 6:14 AM")
+        #expect(MenuBarText.timeRange(at("2026-10-08 16:28"), at("2026-10-08 18:59"), timeZone: Self.tz, locale: Locale(identifier: "en_GB")) == "16:28 – 18:59")
+    }
+}
+
+struct SkyPaletteTests {
+    @Test func hexParsing() {
+        #expect(RGB(hex: 0xFF8000) == RGB(red: 1, green: 128.0 / 255, blue: 0))
     }
 }

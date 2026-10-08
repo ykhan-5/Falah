@@ -1,9 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// Maps an `ArcPosition` onto the drawn arc: a half ellipse standing on a horizon line,
-/// sunrise at the left end, Maghrib at the right, Dhuhr-ish at the top. At night the moon
-/// travels back right → left along a shallow curve below the horizon.
+/// Maps an `ArcPosition` onto the card's 24-hour oval, cut by a horizon line: the day
+/// runs over the top from sunrise (left) to Maghrib (right), and the night continues
+/// under the horizon from Maghrib back to sunrise. `nightDepth` is the lower radius.
 ///
 /// Coordinates are y-up (AppKit default): `horizonY` is the baseline, the arc rises above it.
 struct ArcGeometry: Equatable {

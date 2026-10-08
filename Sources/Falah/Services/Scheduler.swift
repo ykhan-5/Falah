@@ -61,7 +61,7 @@ final class Scheduler {
 
     private func armTimer() {
         timer?.invalidate()
-        let delay = Self.delayUntilNextMinute(from: clock.now())
+        let delay = clock.realInterval(for: Self.delayUntilNextMinute(from: clock.now()))
         let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
             self?.fire(.minute)
         }

@@ -218,15 +218,32 @@ struct PrayerEngineTests {
         let e = engine()
         #expect(try e.snapshot(at: at("2026-10-08 18:58")).arc != .night(0))
         #expect(try e.snapshot(at: at("2026-10-08 18:59")).arc == .night(0))
-        // Middle of the night is the midpoint of Maghrib → Fajr (rounded to a minute).
-        guard case .night(let f) = try e.snapshot(at: at("2026-10-09 00:37")).arc else {
+        // Night runs Maghrib 18:59 → sunrise 07:20 (741 min); halfway is 01:09:30.
+        guard case .night(let f) = try e.snapshot(at: at("2026-10-09 01:09:30")).arc else {
             Issue.record("expected night"); return
         }
         #expect(abs(f - 0.5) < 0.002)
     }
 
-    @Test func arcHoldsAtEndOfNightBetweenFajrAndSunrise() throws {
-        #expect(try engine().snapshot(at: at("2026-10-09 06:45")).arc == .night(1))
+    @Test func moonKeepsMovingBetweenFajrAndSunrise() throws {
+        let e = engine()
+        guard case .night(let atFajr) = try e.snapshot(at: at("2026-10-09 06:14")).arc,
+              case .night(let later) = try e.snapshot(at: at("2026-10-09 06:45")).arc else {
+            Issue.record("expected night"); return
+        }
+        #expect(atFajr < later && later < 1)
+        #expect(try e.snapshot(at: at("2026-10-09 07:20")).arc == .day(0))
+    }
+
+    @Test func nightFractionPlacesIshaLastThirdAndFajrInOrder() throws {
+        let s = try engine().schedule(for: at("2026-10-08 12:00"))
+        #expect(s.nextSunrise == at("2026-10-09 07:20"))
+        let isha = s.nightFraction(of: s.isha)
+        let lastThird = s.nightFraction(of: s.lastThird)
+        let fajr = s.nightFraction(of: s.nextFajr)
+        #expect(0 < isha && isha < lastThird && lastThird < fajr && fajr < 1)
+        #expect(s.nightFraction(of: s.maghrib) == 0)
+        #expect(s.nightFraction(of: s.nextSunrise) == 1)
     }
 
     // MARK: Errors
