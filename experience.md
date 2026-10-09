@@ -6,6 +6,24 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · Branch `liquid-glass`: native Liquid Glass card (experiment)
+
+**Did**
+- Looked into https://github.com/Glass-HQ/liquid-glass: it's a **React 19 + WebGPU library for web/Electron**, not usable from a native Swift app. Embedding it would mean a WKWebView running WebGPU inside a menu bar app, which is heavy and goes against the user's battery request.
+- Used **Apple's native Liquid Glass** instead (macOS 26 SwiftUI). The CLT 26.6 SDK has `View.glassEffect(_:in:)`, `Glass.regular/.clear/.identity`, `.tint(_:)`, `.interactive()`, `GlassEffectContainer`, and `.buttonStyle(.glass)`. They live in **SwiftUICore**'s swiftinterface, not SwiftUI's, so grep there.
+- New `CardStyle` setting (`sky` / `glass`, **default `glass` on this branch**). It's a segmented "Card style" picker in Settings → General, shown only on macOS 26. `CardModel.usesGlass` is false on macOS < 26 whatever the setting says.
+- Glass card:
+  - `Color.clear.glassEffect(.regular.tint(skyTop @ 50%), in: 18 pt rounded rect)`
+  - the sky gradient (with stars) on top at 55% opacity, so the time-of-day colour and white-text contrast survive over bright windows
+  - the current-row highlight becomes `.clear` glass with a faint white tint
+  - the footer band is lighter
+- Builds and the tests pass (62).
+
+**Snags**
+- **Couldn't screenshot it:** the display was asleep while the user was away. Every `screencapture` (region or `-l` window) failed. Needs a visual check with the user.
+- `CGWindowList` reported the card window as **324×565** instead of 360×628 while the display was asleep. Re-check when awake; it may just be how bounds are reported for a sleeping display.
+- Glass can't guarantee the 4.5:1 contrast that the sky card is tested for, since what's behind the window is arbitrary. The 55% sky wash is the mitigation. Judge by eye over light and dark windows.
+
 ## 2026-10-08 · Battery audit + README, LICENSE, release script
 
 **Battery audit (user asked: light on battery, don't change much if it's fine)**

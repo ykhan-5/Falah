@@ -9,6 +9,14 @@ enum LocationMode: String, CaseIterable {
     case manual
 }
 
+/// How the card is drawn. Liquid Glass needs macOS 26; older systems always use Sky.
+enum CardStyle: String, CaseIterable {
+    /// Opaque sky gradient.
+    case sky
+    /// macOS 26 Liquid Glass, tinted with the sky.
+    case glass
+}
+
 struct SavedPlace: Codable, Equatable {
     var name: String
     var latitude: Double
@@ -47,6 +55,7 @@ final class SettingsStore {
     var reminderMinutes: Int { didSet { set(reminderMinutes, Key.reminderMinutes) } }
     /// Background flash at each prayer, "#RRGGBB".
     var momentColorHex: String { didSet { set(momentColorHex, Key.momentColorHex) } }
+    var cardStyle: CardStyle { didSet { set(cardStyle.rawValue, Key.cardStyle) } }
 
     static let defaultMomentColorHex = "#FF9F0A" // system orange
     static let reminderChoices = [0, 5, 10, 15, 20, 30]
@@ -66,6 +75,7 @@ final class SettingsStore {
         notificationsEnabled = defaults.object(forKey: Key.notificationsEnabled) as? Bool ?? true
         reminderMinutes = defaults.object(forKey: Key.reminderMinutes) as? Int ?? 0
         momentColorHex = defaults.string(forKey: Key.momentColorHex) ?? Self.defaultMomentColorHex
+        cardStyle = defaults.string(forKey: Key.cardStyle).flatMap(CardStyle.init) ?? .glass
     }
 
     /// Where times are calculated for: the automatic fix, or the typed place. In automatic
@@ -101,6 +111,7 @@ final class SettingsStore {
         static let notificationsEnabled = "notificationsEnabled"
         static let reminderMinutes = "reminderMinutes"
         static let momentColorHex = "momentColorHex"
+        static let cardStyle = "cardStyle"
     }
 
     private func set(_ value: Any, _ key: String) {

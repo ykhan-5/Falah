@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.isEnabled = settings.notificationsEnabled
         notifier.reminderMinutes = settings.reminderMinutes > 0 ? settings.reminderMinutes : nil
         cardModel.settings = settings.prayerSettings
+        cardModel.style = settings.cardStyle
 
         guard let place = settings.activePlace else {
             cardModel.problem = location.status == .denied ? .locationDenied : .locating

@@ -9,6 +9,13 @@ final class CardModel {
     var problem: CardProblem?
     var locationName = ""
     var settings = PrayerSettings()
+    var style: CardStyle = .sky
+
+    /// Glass only where the system supports it.
+    var usesGlass: Bool {
+        if #available(macOS 26, *) { return style == .glass }
+        return false
+    }
 
     @ObservationIgnored var onSettings: () -> Void = {}
     @ObservationIgnored var onQuit: () -> Void = {}

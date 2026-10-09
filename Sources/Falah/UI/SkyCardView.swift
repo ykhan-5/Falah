@@ -37,7 +37,7 @@ struct SkyCardView: View {
             .padding(.bottom, 16)
             footer
         }
-        .background(SkyBackground(sky: sky))
+        .background(CardBackground(sky: sky, glass: model.usesGlass))
         .animation(.easeInOut(duration: 1.2), value: sky)
         .animation(.easeInOut(duration: 0.4), value: snapshot.current?.prayer)
     }
@@ -128,7 +128,7 @@ struct SkyCardView: View {
                             .tracking(0.8)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(.white.opacity(0.16)))
+                            .background(Capsule().fill(.white.opacity(model.usesGlass ? 0.22 : 0.16)))
                     }
                     Spacer()
                     Text(isCurrent ? MenuBarText.timeRange(interval.start, interval.end) : time(interval.start))
@@ -142,12 +142,7 @@ struct SkyCardView: View {
                 .background {
                     if isCurrent {
                         // Slides to the new row when a prayer begins.
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(.white.opacity(0.10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .strokeBorder(.white.opacity(0.22), lineWidth: 1)
-                            )
+                        HighlightBox(glass: model.usesGlass)
                             .matchedGeometryEffect(id: "current", in: highlight)
                     }
                 }
@@ -189,7 +184,7 @@ struct SkyCardView: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
-        .background(.black.opacity(0.22))
+        .background(.black.opacity(model.usesGlass ? 0.12 : 0.22))
     }
 
     private func unavailable(_ problem: CardProblem) -> some View {
@@ -208,7 +203,7 @@ struct SkyCardView: View {
             .padding(22)
             footer
         }
-        .background(SkyBackground(sky: SkyPalette.gradient(for: .night)))
+        .background(CardBackground(sky: SkyPalette.gradient(for: .night), glass: model.usesGlass))
     }
 
     private func time(_ date: Date) -> String {
@@ -217,6 +212,46 @@ struct SkyCardView: View {
 
     private func color(_ rgb: RGB) -> Color {
         Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+}
+
+/// Sky gradient, or on macOS 26 with Liquid Glass on, glass tinted with the sky so the
+/// desktop shows through while the time-of-day colour still reads.
+struct CardBackground: View {
+    let sky: SkyGradient
+    let glass: Bool
+
+    var body: some View {
+        if #available(macOS 26, *), glass {
+            ZStack {
+                Color.clear
+                    .glassEffect(.regular.tint(color(sky.top).opacity(0.5)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                // A thinner wash of the sky on top keeps white text readable over bright windows.
+                SkyBackground(sky: sky).opacity(0.55)
+            }
+        } else {
+            SkyBackground(sky: sky)
+        }
+    }
+
+    private func color(_ rgb: RGB) -> Color {
+        Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+}
+
+/// The current prayer's row highlight.
+struct HighlightBox: View {
+    let glass: Bool
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        if #available(macOS 26, *), glass {
+            Color.clear.glassEffect(.clear.tint(.white.opacity(0.10)), in: shape)
+        } else {
+            shape
+                .fill(.white.opacity(0.10))
+                .overlay(shape.strokeBorder(.white.opacity(0.22), lineWidth: 1))
+        }
     }
 }
 
