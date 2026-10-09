@@ -9,6 +9,8 @@ import AppKit
 final class Scheduler {
     enum Reason: String {
         case start, minute, wake, dayChanged, timeZoneChanged, clockChanged
+        // Not from the scheduler itself; used when the app refreshes for other reasons.
+        case settingsChanged, locationChanged
     }
 
     private let clock: AppClock

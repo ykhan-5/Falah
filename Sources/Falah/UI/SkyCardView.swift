@@ -8,10 +8,10 @@ struct SkyCardView: View {
 
     var body: some View {
         Group {
-            if let snapshot = model.snapshot, !model.isUnavailable {
+            if let snapshot = model.snapshot, model.problem == nil {
                 content(snapshot)
             } else {
-                unavailable
+                unavailable(model.problem ?? .locating)
             }
         }
         .frame(width: 360)
@@ -192,15 +192,18 @@ struct SkyCardView: View {
         .background(.black.opacity(0.22))
     }
 
-    private var unavailable: some View {
+    private func unavailable(_ problem: CardProblem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Prayer times unavailable")
+            VStack(alignment: .leading, spacing: 10) {
+                Text(problem.title)
                     .font(.system(size: 24, weight: .bold, design: .serif))
-                Text("Times can't be calculated for this location and date. Try a different location or high-latitude rule in Settings.")
+                Text(problem.message)
                     .font(.callout)
                     .opacity(0.8)
                     .fixedSize(horizontal: false, vertical: true)
+                Button("Open Settings", action: model.onSettings)
+                    .buttonStyle(.bordered)
+                    .padding(.top, 4)
             }
             .padding(22)
             footer

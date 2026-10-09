@@ -22,6 +22,10 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSLocationUsageDescription</key>
+	<string>Falah uses your location to calculate prayer times for where you are.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Falah uses your location to calculate prayer times for where you are.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

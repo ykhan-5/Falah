@@ -6,6 +6,50 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · M7 finish: Settings closes back to the card
+
+**Did**
+- The user asked that closing Settings return to the card, not just close. `SettingsWindowController` is now the window's delegate; `windowWillClose` → `onClose` → `showCard()` (pinned). Confirmed in the logs: "Card shown (click)" right after closing.
+- Launch at login works from `build/`: `SMAppService.mainApp.register()` → status 1 (enabled), and unregistering returns to 0.
+- Couldn't script the window's close button: `osascript` → System Events needs Accessibility permission, which the terminal doesn't have.
+
+## 2026-10-08 · Milestone 7: Settings + automatic location
+
+**Did**
+- `Model/Settings.swift`, `SettingsStore` (`@Observable`, UserDefaults-backed):
+  - every property saves on `didSet` and calls `onChange`
+  - holds: location mode, auto place (last fix), typed place, method, Asr, high-latitude rule, **masjid offsets behind a toggle** (the user asked for this), countdown text, notifications, reminder (Off/5/10/15/20/30), flash colour (hex)
+  - `activePlace`: in automatic mode, falls back to the typed city when there's no fix yet or access is denied
+  - `prayerSettings` applies offsets only while the toggle is on
+- `Services/LocationService.swift` (CoreLocation):
+  - asks "When In Use" once, then `requestLocation()`
+  - reverse-geocodes to a city name
+  - reports a new place only after moving > 10 km
+  - re-checks on wake
+  - `geocode(_:)` for typed cities
+- `Info.plist` gained `NSLocationUsageDescription` / `NSLocationWhenInUseUsageDescription`.
+- `UI/SettingsView.swift`, a grouped `Form` in an `NSWindow`. Opening it activates the accessory app briefly to bring the window forward. Sections:
+  - **Location:** Automatic / City-or-coordinates, current fix, a link to Location Services when denied, city search, lat/long fields
+  - **Calculation:** method, Asr (segmented), high-latitude rule
+  - **Masjid adjustments:** toggle + −10…+10 steppers
+  - **Menu bar and alerts:** countdown text, notifications, reminder, flash `ColorPicker` + Preview button
+  - **General:** launch at login (`SMAppService.mainApp`), version
+- `AppDelegate`:
+  - no more hardcoded Houston
+  - each refresh builds the engine from `activePlace` + settings
+  - settings changes refresh immediately (resetting the moment detector so a settings change can't fire a fake "prayer moment")
+- New card states (`CardProblem`): **locating**, **location off**, **calculation failed**, each with an Open Settings button.
+- Hidden `--show-settings` launch argument.
+- 62 tests passing (settings defaults, persistence round trip, the offset toggle, place fallback, change notification, hex round trip, 10 km threshold).
+- Live: after Allow, the location resolved to **Pearland**, times shifted about a minute from Houston, 7 alerts scheduled.
+
+**Snags**
+- **Ad-hoc signing re-prompts for location after every rebuild.** macOS privacy (TCC) identifies an ad-hoc app by its code hash, which changes each build, so the "would like to use your current location" prompt comes back. The spec's pitfall table predicted this for notifications. Options:
+  - live with it during dev
+  - sign dev builds with a stable self-signed certificate, so the identity survives rebuilds
+  - Developer ID later
+- The editor's SourceKit shows "Cannot find X in scope" errors because it doesn't index the CLT SwiftPM build. They're harmless; `scripts/test.sh` and `build-app.sh` are the truth.
+
 ## 2026-10-08 · M6 revision: background flash instead of icon tint
 
 **Did**

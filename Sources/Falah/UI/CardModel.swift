@@ -6,8 +6,8 @@ import Observation
 @Observable
 final class CardModel {
     var snapshot: PrayerSnapshot?
-    var isUnavailable = false
-    var locationName = "Houston"
+    var problem: CardProblem?
+    var locationName = ""
     var settings = PrayerSettings()
 
     @ObservationIgnored var onSettings: () -> Void = {}
@@ -16,6 +16,29 @@ final class CardModel {
     /// "Houston · ISNA · Asr: Standard"
     var footerText: String {
         "\(locationName) · \(settings.method.shortName) · Asr: \(settings.madhab == .hanafi ? "Hanafi" : "Standard")"
+    }
+}
+
+/// Why the card can't show times.
+enum CardProblem: Equatable {
+    case locating
+    case locationDenied
+    case calculationFailed
+
+    var title: String {
+        switch self {
+        case .locating: "Finding your location…"
+        case .locationDenied: "Location is off"
+        case .calculationFailed: "Prayer times unavailable"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .locating: "Falah needs your location once to calculate prayer times. You can also set a city in Settings."
+        case .locationDenied: "Allow Falah in System Settings → Privacy & Security → Location Services, or set your city in Falah Settings."
+        case .calculationFailed: "Times can't be calculated for this location and date. Try a different high-latitude rule in Settings."
+        }
     }
 }
 

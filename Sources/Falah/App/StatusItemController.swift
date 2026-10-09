@@ -6,7 +6,7 @@ final class StatusItemController: NSObject {
     private let cardModel: CardModel
     private var popover: PopoverController?
 
-    /// Hides the "Asr in 32m" text, leaving only the icon. Becomes a setting in milestone 7.
+    /// Hides the "Asr in 32m" text, leaving only the icon (Settings).
     var showsText = true
 
     init(cardModel: CardModel) {
@@ -40,7 +40,7 @@ final class StatusItemController: NSObject {
         popover?.refreshLayout()
     }
 
-    /// Background color for the prayer-moment flash. Editable in Settings (milestone 7).
+    /// Background color for the prayer-moment flash, from Settings.
     var momentColor = NSColor.systemOrange
 
     /// Prayer moment: the item's background flashes `momentColor` three times, like the
