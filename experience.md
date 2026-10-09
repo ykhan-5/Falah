@@ -6,6 +6,19 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-09 · Shipped v1.0.0
+
+**Did**
+- The user installed `gh` (Homebrew at `/opt/homebrew/bin`, not on this shell's PATH by default) and ran `gh auth login` as `ykhan-5`.
+- Checked the zip before publishing: universal `x86_64 arm64`, version 1.0.0.
+- `gh release create v1.0.0 build/Falah.zip --target main`, with notes covering features, Open Anyway install steps, requirements, and the "compare with your masjid" advice.
+- Release: https://github.com/ykhan-5/Falah/releases/tag/v1.0.0. The README's `releases/latest` download link resolves (HTTP 200, 632 KB).
+
+**Next (v1.1 ideas)**
+- Developer ID signing + notarization, to remove the Open Anyway step (needs the $99/yr Apple Developer Program).
+- Non-goals from the spec: adhan audio, Qibla, Ramadan mode, widgets, localization.
+- Confirm the App Nap precision window at a real prayer (the flash should land within about a second of the minute).
+
 ## 2026-10-08 · Liquid Glass becomes the default; v1.0.0 touch-ups
 
 **Did**
