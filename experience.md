@@ -6,6 +6,22 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · Liquid Glass becomes the default; v1.0.0 touch-ups
+
+**Did**
+- User verdict on the glass card: **make it the default, with a toggle to turn it off**.
+  - Fast-forwarded `liquid-glass` into `main`.
+  - Settings → General now has a **"Liquid Glass card" toggle** (on by default; macOS 26 only), replacing the Sky/Glass segmented picker.
+- The README screenshot was retaken in **Houston**, not the user's real city, using a new hidden `--debug-place "Name:lat:lon"` launch argument. It overrides the location for that run without saving to settings.
+- README touch-ups: a Liquid Glass feature line and settings entry, plus `--debug-place` / `--show-settings` in the dev section.
+- **Version bumped to 1.0.0.** `scripts/make-release.sh` → universal `build/Falah.zip` (620 KB).
+- The user created and pushed the GitHub repo themselves: `github.com/ykhan-5/Falah` (`main` + `liquid-glass`). Pushing is left to the user.
+
+**Snags**
+- The card closed right after `--show-card` because the user was clicking elsewhere (the outside-click monitor did its job). Fixed by polling `CGWindowList` and capturing as soon as the window appeared.
+- `screencapture -R` around the glass card returned a black image, but `screencapture -l <windowID>` worked. The window capture renders glass without the desktop behind it, so the README image looks like a deeper-toned sky card.
+- The earlier 324×565 window size was a sleeping-display artifact. Awake, it reports 360×628.
+
 ## 2026-10-08 · Branch `liquid-glass`: native Liquid Glass card (experiment)
 
 **Did**

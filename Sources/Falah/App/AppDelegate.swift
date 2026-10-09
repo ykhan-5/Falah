@@ -24,10 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var scheduler: Scheduler?
     private var lastScheduleDay: Date?
     private var lastSnapshot: PrayerSnapshot?
+    private var debugPlace: SavedPlace?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if clock.isFaked {
             Log.clock.notice("Debug time active: now = \(self.clock.now().formatted(date: .abbreviated, time: .standard), privacy: .public)")
+        }
+
+        // Hidden: calculate for a fixed place, e.g. --debug-place "Houston:29.7604:-95.3698"
+        // (for screenshots). Not saved to settings.
+        if let index = CommandLine.arguments.firstIndex(of: "--debug-place"), index + 1 < CommandLine.arguments.count {
+            let parts = CommandLine.arguments[index + 1].split(separator: ":")
+            if parts.count == 3, let lat = Double(parts[1]), let lon = Double(parts[2]) {
+                debugPlace = SavedPlace(name: String(parts[0]), latitude: lat, longitude: lon)
+            }
         }
 
         settingsWindow = SettingsWindowController(store: settings, environment: settingsEnvironment)
@@ -96,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cardModel.settings = settings.prayerSettings
         cardModel.style = settings.cardStyle
 
-        guard let place = settings.activePlace else {
+        guard let place = debugPlace ?? settings.activePlace else {
             cardModel.problem = location.status == .denied ? .locationDenied : .locating
             cardModel.snapshot = nil
             statusItemController?.showUnavailable()

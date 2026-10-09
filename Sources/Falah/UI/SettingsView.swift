@@ -248,11 +248,10 @@ struct SettingsView: View {
     private var general: some View {
         Section("General") {
             if #available(macOS 26, *) {
-                Picker("Card style", selection: $store.cardStyle) {
-                    Text("Sky").tag(CardStyle.sky)
-                    Text("Liquid Glass").tag(CardStyle.glass)
-                }
-                .pickerStyle(.segmented)
+                Toggle("Liquid Glass card", isOn: Binding(
+                    get: { store.cardStyle == .glass },
+                    set: { store.cardStyle = $0 ? .glass : .sky }
+                ))
             }
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }

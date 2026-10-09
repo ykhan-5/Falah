@@ -17,6 +17,7 @@ It sits in your menu bar as a sun, a sunset or a moon, with the time of the next
   - Today's prayer times. The current prayer shows its range, the next one is marked, and earlier ones are dimmed.
   - The last third of the night.
 - **Sky colours:** dawn, day, sunset and night backgrounds that blend smoothly into each other, with stars at night.
+- **Liquid Glass:** on macOS 26 the card uses Apple's Liquid Glass, tinted with the sky. You can switch back to the solid sky card in Settings.
 - **Prayer moment:** at each prayer the menu bar item flashes (in a colour you choose) and a silent notification arrives: *It's time for Asr · 4:28 PM*. There's an optional reminder before each prayer.
 - **Settings:**
   - Location: automatic, or a typed city or coordinates.
@@ -24,6 +25,7 @@ It sits in your menu bar as a sun, a sunset or a moon, with the time of the next
   - Asr: Standard or Hanafi.
   - High-latitude rule.
   - Per-prayer adjustments of up to ±10 minutes to match your local masjid.
+  - Liquid Glass card on or off (macOS 26).
   - Launch at login.
 - **Light on battery:** it updates once a minute, on the minute. It has no per-second timers, and its animations only run while the card is open.
 
@@ -66,7 +68,10 @@ Hidden launch arguments fake the clock, so you don't have to wait for a prayer:
 ```sh
 open build/Falah.app --args --debug-time 2026-10-08T16:27:45            # 15 s before Asr
 open build/Falah.app --args --debug-time 2026-10-08T05:30 --debug-speed 300 --show-card   # watch a day in ~5 min
+open build/Falah.app --args --debug-place "Houston:29.7604:-95.3698" --show-card       # fixed place, not saved
 ```
+
+`--show-settings` opens the Settings window at launch.
 
 Logs: `log stream --predicate 'subsystem == "com.yusufkhan.falah"'`
 
