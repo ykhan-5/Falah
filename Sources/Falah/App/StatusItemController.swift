@@ -27,17 +27,25 @@ final class StatusItemController: NSObject {
     }
 
     func update(with snapshot: PrayerSnapshot) {
-        guard let button = statusItem.button else { return }
-        button.image = MenuBarIcon.image(glyph: MenuBarGlyph(phase: snapshot.phase))
+        setGlyph(MenuBarGlyph(phase: snapshot.phase))
         setTitle(showsText ? MenuBarText.text(for: snapshot) : "")
         popover?.refreshLayout()
     }
 
     func showUnavailable() {
-        guard statusItem.button != nil else { return }
-        statusItem.button?.image = MenuBarIcon.image(glyph: nil)
+        setGlyph(nil)
         setTitle(showsText ? "–" : "")
         popover?.refreshLayout()
+    }
+
+    // Only touch the button when something changed, so a routine tick doesn't redraw it.
+    private var currentGlyph: MenuBarGlyph??
+    private var currentTitle: String?
+
+    private func setGlyph(_ glyph: MenuBarGlyph?) {
+        guard currentGlyph != .some(glyph), let button = statusItem.button else { return }
+        currentGlyph = .some(glyph)
+        button.image = MenuBarIcon.image(glyph: glyph)
     }
 
     /// Background color for the prayer-moment flash, from Settings.
@@ -89,7 +97,8 @@ final class StatusItemController: NSObject {
     }
 
     private func setTitle(_ text: String) {
-        guard let button = statusItem.button else { return }
+        guard text != currentTitle, let button = statusItem.button else { return }
+        currentTitle = text
         // Monospaced digits so the item doesn't jiggle as the countdown changes.
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.attributedTitle = NSAttributedString(string: text.isEmpty ? "" : " \(text)", attributes: [.font: font])

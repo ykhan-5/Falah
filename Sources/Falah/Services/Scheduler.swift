@@ -16,9 +16,25 @@ final class Scheduler {
     private let clock: AppClock
     private let onTick: (Reason) -> Void
     private var timer: Timer?
-    /// Opts out of App Nap, which can delay a background app's timers by several seconds.
-    /// Ticks stay once a minute and idle system sleep is still allowed.
+    /// App Nap can delay a background app's timers by several seconds. That's fine for a
+    /// minute countdown, so Falah naps normally and only opts out while `wantsPrecision`
+    /// is set: the couple of minutes before a prayer, so the moment lands on time.
     private var activity: NSObjectProtocol?
+
+    var wantsPrecision = false {
+        didSet {
+            guard wantsPrecision != oldValue else { return }
+            if wantsPrecision {
+                activity = ProcessInfo.processInfo.beginActivity(
+                    options: .userInitiatedAllowingIdleSystemSleep,
+                    reason: "Prayer time is about to begin"
+                )
+            } else if let activity {
+                ProcessInfo.processInfo.endActivity(activity)
+                self.activity = nil
+            }
+        }
+    }
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
     init(clock: AppClock, onTick: @escaping (Reason) -> Void) {
@@ -31,10 +47,6 @@ final class Scheduler {
     }
 
     func start() {
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: .userInitiatedAllowingIdleSystemSleep,
-            reason: "Menu bar prayer countdown updates on the minute"
-        )
         let workspace = NSWorkspace.shared.notificationCenter
         let center = NotificationCenter.default
         observe(workspace, NSWorkspace.didWakeNotification, .wake)
@@ -47,8 +59,7 @@ final class Scheduler {
     func stop() {
         timer?.invalidate()
         timer = nil
-        if let activity { ProcessInfo.processInfo.endActivity(activity) }
-        activity = nil
+        wantsPrecision = false
         for (center, token) in observers {
             center.removeObserver(token)
         }

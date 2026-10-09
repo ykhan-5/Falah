@@ -6,6 +6,32 @@ A running log of what we did, why, what broke, and what we learned. Each entry i
 
 ---
 
+## 2026-10-08 · Battery audit + README, LICENSE, release script
+
+**Battery audit (user asked: light on battery, don't change much if it's fine)**
+- Measured with `top -stats cpu,idlew,power,mem`: **0.0% CPU, 0.0 energy impact, ~2 idle wakeups per 5 s sample, 47 MB**. 7.4 s of CPU total over about 20 min, including hovering, Settings and animations.
+- Already efficient by design:
+  - one minute-aligned timer
+  - the 10 Hz pointer check only runs while a hover-opened card is visible
+  - SwiftUI only lays out while the card is shown
+  - location is a one-shot `requestLocation()` (on start and wake), never continuous
+  - notifications are scheduled by the system
+- Three small tweaks:
+  1. **App Nap opt-out narrowed** from "always" to only the ~2.5 min before a prayer (`Scheduler.wantsPrecision`, set when `timeUntilNext <= 150`). The rest of the day macOS may nap and coalesce Falah's timer; a few seconds' lag on a minute countdown is fine.
+  2. **Routine minute ticks log at `.debug`**, which isn't persisted. Previously `.notice` wrote to the unified log every minute. Events (start/wake/settings/moment) still log at notice.
+  3. **The status item only redraws when its glyph or text changes** (cached `currentGlyph`/`currentTitle`).
+- A precision-window test couldn't be confirmed because the Mac slept mid-test (user away). The wake catch-up worked: the 4:28 tick was missed in sleep, and on wake at 4:29:01 the Asr moment still fired, because it started < 2 min earlier.
+
+**Shipping prep (M8, part 1)**
+- `LICENSE` (MIT, 2026 Yusuf Khan).
+- `README.md`: what it is, features, install with the **Open Anyway** steps, an accuracy note (compare with your masjid), build from source (`scripts/test.sh` caveat), debug launch arguments, layout.
+- `docs/screenshot.png`: the card alone, captured with `screencapture -l <windowID>`. The window ID came from a tiny Swift script using `CGWindowListCopyWindowInfo`. **The footer shows the user's real city (Pearland). Ask before publishing.**
+- `scripts/make-release.sh`:
+  - `swift build --triple arm64-apple-macosx14.0` and `x86_64-…` separately, then `lipo -create`, because multi-`--arch` needs Xcode's xcbuild
+  - ad hoc sign + verify, then `ditto -c -k --keepParent`
+  - Result: universal `x86_64 arm64`, `build/Falah.zip` 604 KB. Cross-compiling x86_64 with CLT alone works.
+- Still to do when the user is back: install `gh` + auth, bump the version to 1.0.0, create the repo, push, release.
+
 ## 2026-10-08 · M7 finish: Settings closes back to the card
 
 **Did**

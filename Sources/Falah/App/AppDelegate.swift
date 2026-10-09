@@ -115,8 +115,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             cardModel.problem = nil
             statusItemController?.update(with: snap)
 
+            // Stay un-napped only in the run-up to a prayer, so its moment fires on time.
+            scheduler?.wantsPrecision = snap.timeUntilNext <= 150
+
             let text = MenuBarText.text(for: snap)
-            Log.app.notice("Refresh (\(reason.rawValue, privacy: .public)) at \(now.formatted(date: .omitted, time: .standard), privacy: .public) \(TimeZone.current.identifier, privacy: .public): \(text, privacy: .public)")
+            if reason == .minute {
+                // Debug level isn't written to disk, so routine ticks cost nothing to log.
+                Log.app.debug("Tick at \(now.formatted(date: .omitted, time: .standard), privacy: .public): \(text, privacy: .public)")
+            } else {
+                Log.app.notice("Refresh (\(reason.rawValue, privacy: .public)) at \(now.formatted(date: .omitted, time: .standard), privacy: .public) \(TimeZone.current.identifier, privacy: .public): \(text, privacy: .public)")
+            }
             if snap.schedule.day != lastScheduleDay || reason == .settingsChanged || reason == .locationChanged {
                 lastScheduleDay = snap.schedule.day
                 logSchedule(snap, place: place)
